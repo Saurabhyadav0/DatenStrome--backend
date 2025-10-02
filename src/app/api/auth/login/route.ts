@@ -1,4 +1,3 @@
-// app/api/auth/login/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
@@ -9,7 +8,8 @@ export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
-    const { email, password } = await req.json();
+    // Explicitly type request body
+    const { email, password }: { email: string; password: string } = await req.json();
 
     const user = await User.findOne({ email });
     if (!user) {
@@ -21,13 +21,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "Invalid credentials" }, { status: 400 });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET as string, {
-      expiresIn: "7d",
-    });
+    const token = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET as string,
+      { expiresIn: "7d" }
+    );
 
     return NextResponse.json({ token, user }, { status: 200 });
-  } catch (err: any) {
-    console.error(err);
-    return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      console.error("Login error:", err.message);
+    } else {
+      console.error("Unexpected login error:", err);
+    }
+    return NextResponse.json(
+      { message: "Internal Server Error" },
+      { status: 500 }
+    );
   }
 }

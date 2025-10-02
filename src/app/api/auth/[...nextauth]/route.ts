@@ -1,8 +1,8 @@
 // File: /app/api/auth/[...nextauth]/route.ts
 
 import NextAuth, { NextAuthOptions } from "next-auth";
-import GoogleProvider from "next-auth/providers/google";
-import LinkedInProvider from "next-auth/providers/linkedin";
+import GoogleProvider, { GoogleProfile } from "next-auth/providers/google";
+import LinkedInProvider, { LinkedInProfile } from "next-auth/providers/linkedin";
 import { connectDB } from "@/app/lib/db";
 import User from "@/app/models/User";
 
@@ -20,11 +20,28 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user, profile }) {
       await connectDB();
+
       const existing = await User.findOne({ email: user.email });
-      if (!existing) {
+      if (!existing && profile) {
+        let firstName = "NA";
+        let lastName = "NA";
+
+        if ("given_name" in profile && "family_name" in profile) {
+          // Google Profile
+          firstName = (profile as GoogleProfile).given_name ?? "NA";
+          lastName = (profile as GoogleProfile).family_name ?? "NA";
+        } else if (
+          "localizedFirstName" in profile &&
+          "localizedLastName" in profile
+        ) {
+          // LinkedIn Profile
+          firstName = (profile as LinkedInProfile).localizedFirstName ?? "NA";
+          lastName = (profile as LinkedInProfile).localizedLastName ?? "NA";
+        }
+
         await User.create({
-          firstName: (profile as any).given_name || "NA",
-          lastName: (profile as any).family_name || "NA",
+          firstName,
+          lastName,
           email: user.email,
           role: "user",
           experienceLevel: "beginner",

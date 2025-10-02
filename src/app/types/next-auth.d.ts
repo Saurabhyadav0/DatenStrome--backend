@@ -7,3 +7,8 @@ declare module "next-auth" {
     } & DefaultSession["user"];
   }
 }
+
+export interface JwtUserPayload {
+  id: string; // MongoDB _id as string
+  email: string;
+}
