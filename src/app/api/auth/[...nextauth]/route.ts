@@ -18,6 +18,7 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    // 🔑 Sign in: ensure user exists in DB
     async signIn({ user, profile }) {
       await connectDB();
 
@@ -27,14 +28,12 @@ export const authOptions: NextAuthOptions = {
         let lastName = "NA";
 
         if ("given_name" in profile && "family_name" in profile) {
-          // Google Profile
           firstName = (profile as GoogleProfile).given_name ?? "NA";
           lastName = (profile as GoogleProfile).family_name ?? "NA";
         } else if (
           "localizedFirstName" in profile &&
           "localizedLastName" in profile
         ) {
-          // LinkedIn Profile
           firstName = (profile as LinkedInProfile).localizedFirstName ?? "NA";
           lastName = (profile as LinkedInProfile).localizedLastName ?? "NA";
         }
@@ -43,13 +42,39 @@ export const authOptions: NextAuthOptions = {
           firstName,
           lastName,
           email: user.email,
-          role: "user",
-          experienceLevel: "beginner",
-          password: "oauth", // mark OAuth users
+          password: "oauth", // placeholder since OAuth
         });
       }
+
       return true;
     },
+
+    // 🔑 Attach MongoDB user id to token
+    async jwt({ token, user }) {
+      await connectDB();
+
+      if (user?.email) {
+        const dbUser = await User.findOne({ email: user.email });
+
+        if (dbUser) {
+          token.id = dbUser.id.toString(); // ✅ Always Mongo ObjectId
+        }
+      }
+
+      return token;
+    },
+
+    // 🔑 Expose id inside session
+    async session({ session, token }) {
+      if (token) {
+        session.user.id = token.id as string;
+      }
+      return session;
+    },
+  },
+  session: {
+    strategy: "jwt",
+    maxAge: 60 * 60 * 24 * 7, // 7 days
   },
   secret: process.env.NEXTAUTH_SECRET,
 };

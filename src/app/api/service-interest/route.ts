@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/app/lib/db";
 import ServiceInterest from "@/app/models/ServiceInterest";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 // Save or update user services
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
-    const userId = req.headers.get("x-user-id");
-    if (!userId) {
+    // ✅ Get userId from NextAuth session
+    const session = await getServerSession(authOptions);
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const userId = session.user.id;
 
     const body = await req.json();
     const { services } = body;
@@ -19,7 +23,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Services are required" }, { status: 400 });
     }
 
-    // ✅ Save or update
     const updatedServices = await ServiceInterest.findOneAndUpdate(
       { userId },
       { services },
@@ -31,7 +34,7 @@ export async function POST(req: NextRequest) {
       data: updatedServices,
     });
   } catch (error) {
-    console.error("Service interest error:", error);
+    console.error("ServiceInterest POST error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -41,10 +44,12 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
 
-    const userId = req.headers.get("x-user-id");
-    if (!userId) {
+    // ✅ Get userId from session
+    const session = await getServerSession(authOptions);
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const userId = session.user.id;
 
     const services = await ServiceInterest.findOne({ userId });
 
@@ -54,7 +59,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ services });
   } catch (error) {
-    console.error("Service interest fetch error:", error);
+    console.error("ServiceInterest GET error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

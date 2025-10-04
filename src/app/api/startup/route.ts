@@ -2,16 +2,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/app/lib/db";
 import Startup from "@/app/models/Startup";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 
 export async function POST(req: NextRequest) {
   try {
     await connectDB();
 
-    // ✅ Get userId from middleware (x-user-id header)
-    const userId = req.headers.get("x-user-id");
-    if (!userId) {
+    // ✅ Get userId from NextAuth session
+    const session = await getServerSession(authOptions);
+    if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    const userId = session.user.id;
 
     // ✅ Parse request body
     const body = await req.json();
@@ -31,7 +34,7 @@ export async function POST(req: NextRequest) {
       industrySector,
       description,
       stage,
-      userId, // Already comes from middleware
+      userId, // From session
     });
 
     await newStartup.save();
@@ -41,7 +44,7 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (error) {
-    console.error(error);
+    console.error("Startup POST error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
